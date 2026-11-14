@@ -7,6 +7,9 @@
         android:name="android.hardware.touchscreen"
         android:required="false" />
 
+    <!-- Storage read permission for legacy Android versions -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+
     <application
         android:name=".PdfViewerApplication"
         android:allowBackup="true"

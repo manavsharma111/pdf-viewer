@@ -163,28 +163,36 @@ class PdfDocumentRepositoryImpl(
     }
 
     private fun queryFileName(uri: Uri): String {
-        var name: String? = null
-        if (uri.scheme == "content") {
-            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (nameIndex != -1 && cursor.moveToFirst()) {
-                    name = cursor.getString(nameIndex)
+        val queried = runCatching {
+            var name: String? = null
+            if (uri.scheme == "content") {
+                context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (nameIndex != -1 && cursor.moveToFirst()) {
+                        name = cursor.getString(nameIndex)
+                    }
                 }
             }
-        }
-        return name ?: uri.lastPathSegment ?: "Document.pdf"
+            name
+        }.getOrNull()
+
+        return queried
+            ?: uri.lastPathSegment?.substringAfterLast('/')?.substringAfterLast(':')
+            ?: "Document.pdf"
     }
 
     private fun queryFileSize(uri: Uri): Long {
-        var size = 0L
-        if (uri.scheme == "content") {
-            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
-                if (sizeIndex != -1 && cursor.moveToFirst()) {
-                    size = cursor.getLong(sizeIndex)
+        return runCatching {
+            var size = 0L
+            if (uri.scheme == "content") {
+                context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                    val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+                    if (sizeIndex != -1 && cursor.moveToFirst()) {
+                        size = cursor.getLong(sizeIndex)
+                    }
                 }
             }
-        }
-        return size
+            size
+        }.getOrDefault(0L)
     }
 }

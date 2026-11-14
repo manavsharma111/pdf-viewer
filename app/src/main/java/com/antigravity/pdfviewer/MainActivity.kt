@@ -28,7 +28,14 @@ class MainActivity : ComponentActivity() {
         val app = application as PdfViewerApplication
 
         // Handle incoming PDF from ACTION_VIEW or ACTION_SEND
-        val initialUri: Uri? = parseIntentUri(intent)
+        val initialUri: Uri? = parseIntentUri(intent)?.also { uri ->
+            runCatching {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+        }
 
         setContent {
             val userSettings by app.preferencesRepository.userSettingsFlow.collectAsStateWithLifecycle(
