@@ -189,6 +189,10 @@ class PdfReaderViewModel(
         return pdfRepository.getPageInfo(pageIndex)
     }
 
+    suspend fun extractPageText(pageIndex: Int): String {
+        return runCatching { pdfRepository.extractText(pageIndex) }.getOrDefault("")
+    }
+
     fun onPageChanged(newPage: Int) {
         val safePage = newPage.coerceIn(0, (_uiState.value.totalPages - 1).coerceAtLeast(0))
         if (_uiState.value.currentPage == safePage) return

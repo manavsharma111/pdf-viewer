@@ -357,43 +357,67 @@ class PdfBoxManager(private val context: Context) {
     ) = withContext(Dispatchers.IO) {
         PDDocument().use { doc ->
             for (uri in imageUris) {
-                UriHelper.openInputStream(context, uri)?.use { stream ->
-                    val bitmap = BitmapFactory.decodeStream(stream) ?: return@use
+                // Decode bounds first to prevent OutOfMemory on modern 50MP/108MP phone photos
+                val bitmap = decodeSampledBitmap(context, uri) ?: continue
 
-                    val pageRect = when (pageSize.uppercase()) {
-                        "LETTER" -> PDRectangle.LETTER
-                        "ORIGINAL" -> PDRectangle(bitmap.width.toFloat(), bitmap.height.toFloat())
-                        else -> PDRectangle.A4
+                val pageRect = when (pageSize.uppercase()) {
+                    "LETTER" -> PDRectangle.LETTER
+                    "ORIGINAL" -> PDRectangle(bitmap.width.toFloat(), bitmap.height.toFloat())
+                    else -> PDRectangle.A4
+                }
+
+                val page = PDPage(pageRect)
+                page.rotation = rotation
+                doc.addPage(page)
+
+                val pdImage = JPEGFactory.createFromImage(doc, bitmap, 0.85f)
+                PDPageContentStream(doc, page).use { contentStream ->
+                    val pageWidth = pageRect.width
+                    val pageHeight = pageRect.height
+
+                    // Fit within page while keeping aspect ratio
+                    val imgRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+                    val pageRatio = pageWidth / pageHeight
+
+                    val (drawWidth, drawHeight) = if (imgRatio > pageRatio) {
+                        pageWidth to (pageWidth / imgRatio)
+                    } else {
+                        (pageHeight * imgRatio) to pageHeight
                     }
 
-                    val page = PDPage(pageRect)
-                    page.rotation = rotation
-                    doc.addPage(page)
+                    val x = (pageWidth - drawWidth) / 2f
+                    val y = (pageHeight - drawHeight) / 2f
 
-                    val pdImage = JPEGFactory.createFromImage(doc, bitmap, 0.85f)
-                    PDPageContentStream(doc, page).use { contentStream ->
-                        val pageWidth = pageRect.width
-                        val pageHeight = pageRect.height
-
-                        // Fit within page while keeping aspect ratio
-                        val imgRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
-                        val pageRatio = pageWidth / pageHeight
-
-                        val (drawWidth, drawHeight) = if (imgRatio > pageRatio) {
-                            pageWidth to (pageWidth / imgRatio)
-                        } else {
-                            (pageHeight * imgRatio) to pageHeight
-                        }
-
-                        val x = (pageWidth - drawWidth) / 2f
-                        val y = (pageHeight - drawHeight) / 2f
-
-                        contentStream.drawImage(pdImage, x, y, drawWidth, drawHeight)
-                    }
+                    contentStream.drawImage(pdImage, x, y, drawWidth, drawHeight)
                 }
             }
             doc.save(outputStream)
         }
+    }
+
+    private fun decodeSampledBitmap(context: Context, uri: Uri, maxDim: Int = 2400): Bitmap? {
+        return runCatching {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            UriHelper.openInputStream(context, uri)?.use {
+                BitmapFactory.decodeStream(it, null, bounds)
+            }
+            val origW = bounds.outWidth
+            val origH = bounds.outHeight
+            if (origW <= 0 || origH <= 0) return null
+
+            var sampleSize = 1
+            while ((origW / sampleSize) > maxDim || (origH / sampleSize) > maxDim) {
+                sampleSize *= 2
+            }
+
+            val decodeOpts = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize
+                inPreferredConfig = Bitmap.Config.RGB_565
+            }
+            UriHelper.openInputStream(context, uri)?.use {
+                BitmapFactory.decodeStream(it, null, decodeOpts)
+            }
+        }.getOrNull()
     }
 
     suspend fun burnAnnotationsIntoPdf(

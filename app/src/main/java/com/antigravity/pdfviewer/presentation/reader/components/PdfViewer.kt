@@ -68,6 +68,7 @@ fun PdfViewer(
     onTextAdded: (Int, TextAnnotation) -> Unit,
     onHighlightAdded: (Int, HighlightAnnotation) -> Unit,
     onTap: () -> Unit,
+    onSelectText: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     if (totalPages <= 0) return
@@ -94,6 +95,9 @@ fun PdfViewer(
                                 offsetY = 0f
                             }
                             onZoomChanged(scale, offsetX, offsetY)
+                        },
+                        onLongPress = {
+                            onSelectText()
                         }
                     )
                 }

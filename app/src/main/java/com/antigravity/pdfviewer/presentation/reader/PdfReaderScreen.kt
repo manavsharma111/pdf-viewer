@@ -60,6 +60,7 @@ import com.antigravity.pdfviewer.presentation.reader.components.PdfViewer
 import com.antigravity.pdfviewer.presentation.reader.components.ReaderBottomBar
 import com.antigravity.pdfviewer.presentation.reader.components.ReaderTopBar
 import com.antigravity.pdfviewer.presentation.reader.components.SearchBar
+import com.antigravity.pdfviewer.presentation.reader.components.TextSelectionSheet
 import com.antigravity.pdfviewer.presentation.reader.components.ThumbnailsSheet
 import kotlinx.coroutines.launch
 
@@ -78,6 +79,19 @@ fun PdfReaderScreen(
     val focusRequester = remember { FocusRequester() }
 
     var showAutoSaveWarningDialog by remember { mutableStateOf(false) }
+    var showTextSelectionSheet by remember { mutableStateOf(false) }
+    var selectedPageText by remember { mutableStateOf<String?>(null) }
+    var isExtractingPageText by remember { mutableStateOf(false) }
+
+    fun openTextSelection(pageIndex: Int) {
+        showTextSelectionSheet = true
+        isExtractingPageText = true
+        selectedPageText = null
+        scope.launch {
+            selectedPageText = viewModel.extractPageText(pageIndex)
+            isExtractingPageText = false
+        }
+    }
 
     // Screen sleep lock effect
     DisposableEffect(uiState.keepScreenAwake) {
@@ -251,7 +265,8 @@ fun PdfReaderScreen(
                     onStrokeAdded = { page, stroke -> viewModel.addStroke(page, stroke) },
                     onTextAdded = { page, text -> viewModel.addTextAnnotation(page, text) },
                     onHighlightAdded = { page, hl -> viewModel.addHighlight(page, hl) },
-                    onTap = { viewModel.toggleControls() }
+                    onTap = { viewModel.toggleControls() },
+                    onSelectText = { openTextSelection(uiState.currentPage) }
                 )
             } else if (uiState.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -300,7 +315,8 @@ fun PdfReaderScreen(
                         }
                         context.startActivity(Intent.createChooser(shareIntent, "Share PDF"))
                     },
-                    onSaveClick = onTriggerSave
+                    onSaveClick = onTriggerSave,
+                    onSelectTextClick = { openTextSelection(uiState.currentPage) }
                 )
             }
 
@@ -411,6 +427,16 @@ fun PdfReaderScreen(
                     onBookmarkSelected = { viewModel.onPageChanged(it) },
                     onDeleteBookmark = { viewModel.removeBookmark(it) },
                     onDismiss = { viewModel.setBookmarksVisible(false) }
+                )
+            }
+
+            // Text Selection Sheet
+            if (showTextSelectionSheet) {
+                TextSelectionSheet(
+                    pageIndex = uiState.currentPage,
+                    pageText = selectedPageText,
+                    isLoading = isExtractingPageText,
+                    onDismiss = { showTextSelectionSheet = false }
                 )
             }
 

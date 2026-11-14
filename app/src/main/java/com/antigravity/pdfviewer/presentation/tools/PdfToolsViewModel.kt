@@ -68,6 +68,8 @@ class PdfToolsViewModel(
                         errorMessage = "Failed to merge: ${e.localizedMessage ?: "Unknown error"}"
                     )
                 }
+            } finally {
+                runCatching { outputStream.close() }
             }
         }
     }
@@ -160,6 +162,8 @@ class PdfToolsViewModel(
                         errorMessage = "Compression failed: ${e.localizedMessage ?: "Unknown error"}"
                     )
                 }
+            } finally {
+                runCatching { outputStream.close() }
             }
         }
     }
@@ -190,6 +194,8 @@ class PdfToolsViewModel(
                         errorMessage = "Encryption failed: ${e.localizedMessage ?: "Unknown error"}"
                     )
                 }
+            } finally {
+                runCatching { outputStream.close() }
             }
         }
     }
@@ -258,6 +264,8 @@ class PdfToolsViewModel(
                         errorMessage = "Failed to convert images: ${e.localizedMessage ?: "Unknown error"}"
                     )
                 }
+            } finally {
+                runCatching { outputStream.close() }
             }
         }
     }
@@ -288,6 +296,8 @@ class PdfToolsViewModel(
                         errorMessage = "Text extraction failed: ${e.localizedMessage ?: "Unknown error"}"
                     )
                 }
+            } finally {
+                runCatching { outputStream.close() }
             }
         }
     }

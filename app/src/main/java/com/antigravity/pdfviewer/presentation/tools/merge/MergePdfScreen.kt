@@ -67,8 +67,11 @@ fun MergePdfScreen(
         contract = ActivityResultContracts.CreateDocument("application/pdf")
     ) { destUri ->
         if (destUri != null) {
-            context.contentResolver.openOutputStream(destUri)?.use { out ->
+            val out = context.contentResolver.openOutputStream(destUri)
+            if (out != null) {
                 viewModel.mergePdfs(selectedUris.toList(), out)
+            } else {
+                Toast.makeText(context, "Could not open destination file", Toast.LENGTH_SHORT).show()
             }
         }
     }

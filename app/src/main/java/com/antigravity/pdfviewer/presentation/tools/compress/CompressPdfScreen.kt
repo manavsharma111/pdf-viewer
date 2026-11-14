@@ -61,7 +61,8 @@ fun CompressPdfScreen(
         contract = ActivityResultContracts.CreateDocument("application/pdf")
     ) { destUri ->
         if (destUri != null && selectedUri != null) {
-            context.contentResolver.openOutputStream(destUri)?.use { out ->
+            val out = context.contentResolver.openOutputStream(destUri)
+            if (out != null) {
                 viewModel.compressPdf(selectedUri!!, out, compressionLevel)
             }
         }

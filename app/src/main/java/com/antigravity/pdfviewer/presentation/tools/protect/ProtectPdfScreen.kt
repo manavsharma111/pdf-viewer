@@ -68,7 +68,8 @@ fun ProtectPdfScreen(
         contract = ActivityResultContracts.CreateDocument("application/pdf")
     ) { destUri ->
         if (destUri != null && selectedUri != null) {
-            context.contentResolver.openOutputStream(destUri)?.use { out ->
+            val out = context.contentResolver.openOutputStream(destUri)
+            if (out != null) {
                 viewModel.protectPdf(selectedUri!!, out, password, password)
             }
         }

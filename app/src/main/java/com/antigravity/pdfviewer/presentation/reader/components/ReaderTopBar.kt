@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
@@ -62,6 +63,7 @@ fun ReaderTopBar(
     onMetadataClick: () -> Unit,
     onShareClick: () -> Unit,
     onSaveClick: () -> Unit,
+    onSelectTextClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -163,6 +165,14 @@ fun ReaderTopBar(
                         onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
+                            text = { Text("Select & Copy Text") },
+                            leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+                            onClick = {
+                                onSelectTextClick()
+                                showMenu = false
+                            }
+                        )
+                        DropdownMenuItem(
                             text = { Text("Rotate Page (90° CW)") },
                             leadingIcon = { Icon(Icons.Default.RotateRight, contentDescription = null) },
                             onClick = {
@@ -249,6 +259,14 @@ fun ReaderTopBar(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false }
                         ) {
+                            DropdownMenuItem(
+                                text = { Text("Select & Copy Text") },
+                                leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+                                onClick = {
+                                    onSelectTextClick()
+                                    showMenu = false
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text("Document Info") },
                                 leadingIcon = { Icon(Icons.Default.Info, contentDescription = null) },
