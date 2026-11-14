@@ -45,6 +45,9 @@ android {
     buildFeatures {
         compose = true
     }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.11"
     }
