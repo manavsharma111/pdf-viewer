@@ -67,16 +67,20 @@ fun AppNavGraph(
         composable(
             route = Screen.Reader.route,
             arguments = listOf(
-                navArgument("uri") { type = NavType.StringType },
+                navArgument("uri") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
                 navArgument("page") {
                     type = NavType.IntType
                     defaultValue = 0
                 }
             )
         ) { backStackEntry ->
-            val uriStr = backStackEntry.arguments?.getString("uri") ?: ""
+            val uriStr = backStackEntry.arguments?.getString("uri")
             val initialPage = backStackEntry.arguments?.getInt("page") ?: 0
-            val uri = Uri.parse(Uri.decode(uriStr))
+            val uri = if (!uriStr.isNullOrBlank()) Uri.parse(Uri.decode(uriStr)) else Uri.EMPTY
 
             val readerViewModel: PdfReaderViewModel = viewModel(
                 factory = PdfReaderViewModel.Factory(
@@ -103,11 +107,15 @@ fun AppNavGraph(
         composable(
             route = Screen.PageManagement.route,
             arguments = listOf(
-                navArgument("uri") { type = NavType.StringType }
+                navArgument("uri") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
             )
         ) { backStackEntry ->
-            val uriStr = backStackEntry.arguments?.getString("uri") ?: ""
-            val uri = Uri.parse(Uri.decode(uriStr))
+            val uriStr = backStackEntry.arguments?.getString("uri")
+            val uri = if (!uriStr.isNullOrBlank()) Uri.parse(Uri.decode(uriStr)) else Uri.EMPTY
 
             val pageManagementViewModel: PageManagementViewModel = viewModel(
                 factory = PageManagementViewModel.Factory(

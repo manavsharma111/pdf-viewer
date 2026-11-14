@@ -48,8 +48,12 @@ class PdfViewerApplication : Application() {
         super.onCreate()
         instance = this
 
-        // Initialize Apache PDFBox Android resource loader
-        PDFBoxResourceLoader.init(applicationContext)
+        // Initialize Apache PDFBox Android resource loader safely
+        runCatching {
+            PDFBoxResourceLoader.init(applicationContext)
+        }.onFailure {
+            it.printStackTrace()
+        }
 
         // Local storage & preferences
         database = AppDatabase.getInstance(this)
