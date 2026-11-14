@@ -3,6 +3,7 @@ package com.antigravity.pdfviewer.data.pdf
 import android.content.Context
 import android.graphics.Color
 import android.net.Uri
+import com.antigravity.pdfviewer.util.UriHelper
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPage
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
@@ -70,7 +71,7 @@ class OfficeToPdfConverter(private val context: Context) {
             }
             else -> {
                 // If it's already a PDF, copy directly
-                context.contentResolver.openInputStream(sourceUri)?.use { input ->
+                UriHelper.openInputStream(context, sourceUri)?.use { input ->
                     FileOutputStream(cacheFile).use { output ->
                         input.copyTo(output)
                     }
@@ -84,7 +85,7 @@ class OfficeToPdfConverter(private val context: Context) {
     private fun convertDocxToPdf(sourceUri: Uri, outputFile: File) {
         val paragraphs = mutableListOf<String>()
 
-        context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+        UriHelper.openInputStream(context, sourceUri)?.use { inputStream ->
             ZipInputStream(inputStream).use { zip ->
                 var entry: ZipEntry? = zip.nextEntry
                 while (entry != null) {
@@ -194,7 +195,7 @@ class OfficeToPdfConverter(private val context: Context) {
         val sheetRows = mutableListOf<List<String>>()
 
         // Step 1: Extract shared strings & first sheet
-        context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+        UriHelper.openInputStream(context, sourceUri)?.use { inputStream ->
             ZipInputStream(inputStream).use { zip ->
                 var entry: ZipEntry? = zip.nextEntry
                 var sharedStringsXml: String? = null
@@ -360,7 +361,7 @@ class OfficeToPdfConverter(private val context: Context) {
     private fun convertPptxToPdf(sourceUri: Uri, outputFile: File) {
         val slidesText = mutableListOf<List<String>>()
 
-        context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+        UriHelper.openInputStream(context, sourceUri)?.use { inputStream ->
             ZipInputStream(inputStream).use { zip ->
                 var entry: ZipEntry? = zip.nextEntry
                 while (entry != null) {

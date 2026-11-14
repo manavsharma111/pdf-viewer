@@ -22,6 +22,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import com.antigravity.pdfviewer.util.UriHelper
 import java.util.concurrent.ConcurrentHashMap
 
 class NativePdfRendererManager(private val context: Context) {
@@ -37,8 +38,13 @@ class NativePdfRendererManager(private val context: Context) {
     // In-flight render jobs mapped by page index
     private val activeJobs = ConcurrentHashMap<Int, Job>()
 
-    // Memory-aware LRU bitmap cache
+    // Memory-aware LRU bitmap cache for full-resolution pages
     private var bitmapCache: LruCache<Int, Bitmap> = createBitmapCache(CachePreset.MEDIUM)
+
+    // Separate LRU cache for thumbnails so thumbnails never overwrite full-res page bitmaps
+    private val thumbnailCache = object : LruCache<Int, Bitmap>(8 * 1024) {
+        override fun sizeOf(key: Int, value: Bitmap): Int = value.byteCount / 1024
+    }
 
     val pageCount: Int
         get() = currentRenderer?.pageCount ?: 0
@@ -56,7 +62,7 @@ class NativePdfRendererManager(private val context: Context) {
             CachePreset.MEDIUM -> 8   // 1/8th of available heap
             CachePreset.HIGH -> 5     // 1/5th of available heap
         }
-        val cacheSize = (maxMemory / fraction).coerceAtLeast(16 * 1024) // at least 16MB
+        val cacheSize = (maxMemory / fraction).coerceAtLeast(32 * 1024) // at least 32MB
 
         return object : LruCache<Int, Bitmap>(cacheSize) {
             override fun sizeOf(key: Int, value: Bitmap): Int {
@@ -69,19 +75,8 @@ class NativePdfRendererManager(private val context: Context) {
         closeDocument()
         currentUri = uri
 
-        val pfd = try {
-            context.contentResolver.openFileDescriptor(uri, "r")
-        } catch (e: Exception) {
-            // If direct descriptor is not seekable or restricted by content provider, copy to cache
-            val temp = File(context.cacheDir, "renderer_temp_${System.currentTimeMillis()}.pdf")
-            tempFile = temp
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                FileOutputStream(temp).use { output ->
-                    input.copyTo(output)
-                }
-            }
-            ParcelFileDescriptor.open(temp, ParcelFileDescriptor.MODE_READ_ONLY)
-        } ?: throw IllegalArgumentException("Cannot open file descriptor for URI: $uri")
+        val pfd = UriHelper.openFileDescriptor(context, uri)
+            ?: throw IllegalArgumentException("Cannot open file descriptor for URI: $uri")
 
         currentPfd = pfd
         val renderer = PdfRenderer(pfd)
@@ -121,14 +116,17 @@ class NativePdfRendererManager(private val context: Context) {
         pageIndex: Int,
         targetWidth: Int? = null,
         targetHeight: Int? = null,
-        densityMultiplier: Float = 1.0f
+        densityMultiplier: Float? = null
     ): Bitmap = withContext(Dispatchers.Default) {
+        val isThumbnail = targetWidth != null && targetWidth <= 400
+        val targetCache = if (isThumbnail) thumbnailCache else bitmapCache
+
         // Check cache first
-        bitmapCache.get(pageIndex)?.let { return@withContext it }
+        targetCache.get(pageIndex)?.let { return@withContext it }
 
         renderMutex.withLock {
             // Re-check cache inside lock
-            bitmapCache.get(pageIndex)?.let { return@withLock it }
+            targetCache.get(pageIndex)?.let { return@withLock it }
 
             val renderer = currentRenderer
                 ?: throw IllegalStateException("PDF renderer is not opened")
@@ -142,13 +140,17 @@ class NativePdfRendererManager(private val context: Context) {
                 val pageWidth = page.width
                 val pageHeight = page.height
 
+                // High-resolution multiplier based on physical screen display density (e.g. 2.5x to 3.5x for Retina sharpness)
+                val effectiveDensity = densityMultiplier
+                    ?: context.resources.displayMetrics.density.coerceIn(2.0f, 3.5f)
+
                 val (destWidth, destHeight) = if (targetWidth != null && targetHeight != null) {
                     targetWidth to targetHeight
                 } else if (targetWidth != null) {
                     val ratio = targetWidth.toFloat() / pageWidth
                     targetWidth to (pageHeight * ratio).toInt()
                 } else {
-                    ((pageWidth * densityMultiplier).toInt()) to ((pageHeight * densityMultiplier).toInt())
+                    ((pageWidth * effectiveDensity).toInt()) to ((pageHeight * effectiveDensity).toInt())
                 }
 
                 val finalWidth = destWidth.coerceAtLeast(100)
@@ -160,7 +162,7 @@ class NativePdfRendererManager(private val context: Context) {
 
                 page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
 
-                bitmapCache.put(pageIndex, bitmap)
+                targetCache.put(pageIndex, bitmap)
                 bitmap
             } finally {
                 page.close()

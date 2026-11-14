@@ -37,9 +37,9 @@ class PdfDocumentRepositoryImpl(
         currentUri = uri
         currentPassword = password
 
-        val fileName = queryFileName(uri)
-        val fileSize = queryFileSize(uri)
-        val mimeType = context.contentResolver.getType(uri)
+        val fileName = com.antigravity.pdfviewer.util.UriHelper.queryFileName(context, uri)
+        val fileSize = com.antigravity.pdfviewer.util.UriHelper.queryFileSize(context, uri)
+        val mimeType = runCatching { context.contentResolver.getType(uri) }.getOrNull()
         val officeType = com.antigravity.pdfviewer.data.pdf.OfficeDocumentType.fromFileNameOrMime(fileName, mimeType)
 
         val workingUri: Uri = if (officeType != com.antigravity.pdfviewer.data.pdf.OfficeDocumentType.PDF &&
@@ -53,7 +53,7 @@ class PdfDocumentRepositoryImpl(
             uri
         }
 
-        val isEncrypted = boxManager.isDocumentEncrypted(workingUri)
+        val isEncrypted = runCatching { boxManager.isDocumentEncrypted(workingUri) }.getOrDefault(false)
         if (isEncrypted && password.isNullOrEmpty()) {
             // Cannot open without password
             return@withContext PdfDocumentInfo(
@@ -66,7 +66,8 @@ class PdfDocumentRepositoryImpl(
         }
 
         val pageCount = if (workingUri.scheme == "file") {
-            rendererManager.openFile(java.io.File(workingUri.path!!))
+            val path = workingUri.path ?: workingUri.toString().removePrefix("file://")
+            rendererManager.openFile(java.io.File(path))
         } else {
             rendererManager.openDocument(workingUri)
         }

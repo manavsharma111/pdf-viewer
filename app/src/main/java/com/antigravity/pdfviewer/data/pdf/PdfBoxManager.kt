@@ -12,6 +12,7 @@ import com.antigravity.pdfviewer.domain.model.PageAnnotations
 import com.antigravity.pdfviewer.domain.model.PdfMetadata
 import com.antigravity.pdfviewer.domain.model.SearchResult
 import com.antigravity.pdfviewer.domain.model.TextAnnotation
+import com.antigravity.pdfviewer.util.UriHelper
 import com.tom_roush.pdfbox.cos.COSName
 import com.tom_roush.pdfbox.io.MemoryUsageSetting
 import com.tom_roush.pdfbox.multipdf.PDFMergerUtility
@@ -46,9 +47,7 @@ class PdfBoxManager(private val context: Context) {
         openDocument(uri, password).use { doc ->
             val info = doc.documentInformation
             val version = doc.version.toString()
-            val fileSize = runCatching {
-                context.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize } ?: 0L
-            }.getOrDefault(0L)
+            val fileSize = UriHelper.queryFileSize(context, uri)
 
             PdfMetadata(
                 title = info?.title,
@@ -68,7 +67,7 @@ class PdfBoxManager(private val context: Context) {
 
     suspend fun isDocumentEncrypted(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            context.contentResolver.openInputStream(uri)?.use { stream ->
+            UriHelper.openInputStream(context, uri)?.use { stream ->
                 PDDocument.load(stream).use { doc ->
                     doc.isEncrypted
                 }
@@ -81,7 +80,7 @@ class PdfBoxManager(private val context: Context) {
     }
 
     private fun openDocument(uri: Uri, password: String? = null): PDDocument {
-        val inputStream: InputStream = context.contentResolver.openInputStream(uri)
+        val inputStream: InputStream = UriHelper.openInputStream(context, uri)
             ?: throw IllegalArgumentException("Cannot open stream for URI: $uri")
         return if (!password.isNullOrEmpty()) {
             PDDocument.load(inputStream, password)
