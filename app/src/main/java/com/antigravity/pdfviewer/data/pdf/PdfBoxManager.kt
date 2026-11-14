@@ -240,7 +240,7 @@ class PdfBoxManager(private val context: Context) {
             sourceUris.forEachIndexed { index, uri ->
                 val temp = File(context.cacheDir, "merge_src_${System.currentTimeMillis()}_$index.pdf")
                 tempFiles.add(temp)
-                context.contentResolver.openInputStream(uri)?.use { input ->
+                UriHelper.openInputStream(context, uri)?.use { input ->
                     FileOutputStream(temp).use { output ->
                         input.copyTo(output)
                     }
@@ -357,7 +357,7 @@ class PdfBoxManager(private val context: Context) {
     ) = withContext(Dispatchers.IO) {
         PDDocument().use { doc ->
             for (uri in imageUris) {
-                context.contentResolver.openInputStream(uri)?.use { stream ->
+                UriHelper.openInputStream(context, uri)?.use { stream ->
                     val bitmap = BitmapFactory.decodeStream(stream) ?: return@use
 
                     val pageRect = when (pageSize.uppercase()) {
